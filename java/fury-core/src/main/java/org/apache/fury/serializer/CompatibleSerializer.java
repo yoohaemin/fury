@@ -558,19 +558,27 @@ public final class CompatibleSerializer<T> extends CompatibleSerializerBase<T> {
       FieldResolver.FieldInfo fieldInfo, MemoryBuffer buffer, Object targetObject) {
     FieldAccessor fieldAccessor = fieldInfo.getFieldAccessor();
     short classId = fieldInfo.getEmbeddedClassId();
+    Object fieldValue = null;
+
     if (ObjectSerializer.readPrimitiveFieldValueFailed(
             fury, buffer, targetObject, fieldAccessor, classId)
         && ObjectSerializer.readBasicObjectFieldValueFailed(
             fury, buffer, targetObject, fieldAccessor, classId)) {
       if (classId == ClassResolver.NO_CLASS_ID) {
         // SEPARATE_TYPES_HASH
-        Object fieldValue = fieldResolver.readObjectField(buffer, fieldInfo);
-        fieldAccessor.putObject(targetObject, fieldValue);
+        fieldValue = fieldResolver.readObjectField(buffer, fieldInfo);
       } else {
         ClassInfo classInfo = fieldInfo.getClassInfo(classId);
         Serializer<Object> serializer = classInfo.getSerializer();
-        fieldAccessor.putObject(targetObject, fury.readRef(buffer, serializer));
+        fieldValue = fury.readRef(buffer, serializer);
       }
+      if (fury.getFieldMismatchCallback() != null) {
+        fieldValue = fury.getFieldMismatchCallback().onMismatch(fieldInfo, fieldValue);
+      }
+    }
+
+    if (fieldValue != null) {
+      fieldAccessor.putObject(targetObject, fieldValue);
     }
   }
 
