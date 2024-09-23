@@ -572,9 +572,9 @@ public final class CompatibleSerializer<T> extends CompatibleSerializerBase<T> {
         Serializer<Object> serializer = classInfo.getSerializer();
         fieldValue = fury.readRef(buffer, serializer);
       }
-      if (fury.getFieldMismatchCallback() != null) {
-        fieldValue = fury.getFieldMismatchCallback().onMismatch(fieldInfo, fieldValue);
-      }
+      // if (fury.getFieldMismatchCallback() != null) {
+      //   fieldValue = fury.getFieldMismatchCallback().onMismatch(fieldInfo, fieldValue);
+      // }
     }
 
     if (fieldValue != null) {
