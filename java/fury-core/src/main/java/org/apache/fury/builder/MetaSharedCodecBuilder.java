@@ -24,20 +24,22 @@ import static org.apache.fury.builder.Generated.GeneratedMetaSharedSerializer.SE
 import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.SortedMap;
-import java.util.function.Function;
-
 import org.apache.fury.Fury;
 import org.apache.fury.builder.Generated.GeneratedMetaSharedSerializer;
 import org.apache.fury.codegen.CodeGenerator;
 import org.apache.fury.codegen.Expression;
 import org.apache.fury.codegen.Expression.Literal;
-import org.apache.fury.collection.Tuple2;
 import org.apache.fury.config.CompatibleMode;
 import org.apache.fury.config.FuryBuilder;
 import org.apache.fury.memory.MemoryBuffer;
 import org.apache.fury.meta.ClassDef;
 import org.apache.fury.reflect.TypeRef;
-import org.apache.fury.serializer.*;
+import org.apache.fury.serializer.FieldMismatchCallback;
+import org.apache.fury.serializer.Serializer;
+import org.apache.fury.serializer.ObjectSerializer;
+import org.apache.fury.serializer.CodegenSerializer;
+import org.apache.fury.serializer.Serializers;
+import org.apache.fury.serializer.MetaSharedSerializer;
 import org.apache.fury.type.Descriptor;
 import org.apache.fury.type.DescriptorGrouper;
 import org.apache.fury.util.ExceptionUtils;
@@ -179,46 +181,39 @@ public class MetaSharedCodecBuilder extends ObjectCodecBuilder {
   @Override
   protected Expression setFieldValue(Expression bean, Descriptor descriptor, Expression value) {
     if (descriptor.getField() == null) {
-        FieldMismatchCallback.FieldAdjustment adjustment = fury.getFieldMismatchCallback().onMismatch(descriptor.getTypeName(), descriptor.getName())
+      FieldMismatchCallback.FieldAdjustment adjustment =
+          fury.getFieldMismatchCallback()
+              .onMismatch(descriptor.getTypeName(), descriptor.getName());
 
-                if (adjustment == null) {
-                    return new Expression.StaticInvoke(ExceptionUtils.class, "ignore", value);
-                } else {
+      if (adjustment == null) {
+        return new Expression.StaticInvoke(ExceptionUtils.class, "ignore", value);
+      } else {
 
-              Field newTargetField =   adjustment.getTargetField();
+        Field newTargetField = adjustment.getTargetField();
 
-                    // Field doesn't exist in current class, invoke field mismatch callback.
-                    Expression fieldMismatchCallback = Expression.Invoke.inlineInvoke(
-                            new Expression.Reference(FURY_NAME, TypeRef.of(Fury.class)),
-                            "getFieldMismatchCallback",
-                            TypeRef.of(FieldMismatchCallback.class),
-                            /* needTryCatch */ false
-                    );
+        // Field doesn't exist in current class, invoke field mismatch callback.
+        Expression fieldMismatchCallback =
+            Expression.Invoke.inlineInvoke(
+                new Expression.Reference(FURY_NAME, TypeRef.of(Fury.class)),
+                "getFieldMismatchCallback",
+                TypeRef.of(FieldMismatchCallback.class),
+                /* needTryCatch */ false);
 
-                    Expression onMismatch = Expression.Invoke.inlineInvoke(
-                            fieldMismatchCallback,
-                            "onMismatch",
-                            TypeRef.of(FieldMismatchCallback.FieldAdjustment.class),
-                            new Literal(descriptor.getTypeName()),
-                            new Literal(descriptor.getName())
-                    );
+        Expression onMismatch =
+            Expression.Invoke.inlineInvoke(
+                fieldMismatchCallback,
+                "onMismatch",
+                TypeRef.of(FieldMismatchCallback.FieldAdjustment.class),
+                new Literal(descriptor.getTypeName()),
+                new Literal(descriptor.getName()));
 
-                    Expression invokeHandler = new Expression.Invoke(
-                            onMismatch,
-                            "adjustValue",
-                            TypeRef.of(Object.class),
-                            value
-                    );
+        Expression invokeHandler =
+            new Expression.Invoke(onMismatch, "adjustValue", TypeRef.of(Object.class), value);
 
-                    Descriptor updatedDescriptor = new Descriptor(
-                            newTargetField,
-                            null,
-                            null,
-                            null
-                    );
+        Descriptor updatedDescriptor = new Descriptor(newTargetField, null, null, null);
 
-                    return super.setFieldValue(bean, updatedDescriptor, invokeHandler);
-                }
+        return super.setFieldValue(bean, updatedDescriptor, invokeHandler);
+      }
     }
     return super.setFieldValue(bean, descriptor, value);
   }

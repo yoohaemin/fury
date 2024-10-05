@@ -19,15 +19,11 @@
 
 package org.apache.fury.config;
 
-import java.lang.reflect.Field;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
-
 import org.apache.fury.Fury;
 import org.apache.fury.ThreadLocalFury;
 import org.apache.fury.ThreadSafeFury;
-import org.apache.fury.collection.Tuple2;
 import org.apache.fury.logging.Logger;
 import org.apache.fury.logging.LoggerFactory;
 import org.apache.fury.memory.Platform;
@@ -86,9 +82,13 @@ public final class FuryBuilder {
   boolean suppressClassRegistrationWarnings = true;
   boolean deserializeNonexistentEnumValueAsNull = false;
   MetaCompressor metaCompressor = new DeflaterMetaCompressor();
-  FieldMismatchCallback fieldMismatchCallback = new FieldMismatchCallback() {
-      public FieldMismatchCallback.FieldAdjustment onMismatch(String typeName, String fieldName) { return  null; };
-  };
+  FieldMismatchCallback fieldMismatchCallback =
+      new FieldMismatchCallback() {
+        @Override
+        public FieldMismatchCallback.FieldAdjustment onMismatch(String typeName, String fieldName) {
+          return null;
+        }
+      };
 
   public FuryBuilder() {}
 

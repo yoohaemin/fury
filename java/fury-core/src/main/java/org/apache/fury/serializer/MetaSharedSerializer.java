@@ -148,28 +148,36 @@ public class MetaSharedSerializer<T> extends AbstractObjectSerializer<T> {
       ObjectSerializer.FinalTypeField fieldInfo = finalFields[i];
       boolean isFinal = this.isFinal[i];
       FieldAccessor fieldAccessor = fieldInfo.fieldAccessor;
-      if (fieldAccessor != null) {
-        short classId = fieldInfo.classId;
-        if (ObjectSerializer.readPrimitiveFieldValueFailed(
-                fury, buffer, obj, fieldAccessor, classId)
-            && ObjectSerializer.readBasicObjectFieldValueFailed(
-                fury, buffer, obj, fieldAccessor, classId)) {
-          assert fieldInfo.classInfo != null;
-          Object fieldValue =
-              ObjectSerializer.readFinalObjectFieldValue(
-                  fury, refResolver, classResolver, fieldInfo, isFinal, buffer);
-          fieldAccessor.putObject(obj, fieldValue);
+      short classId = fieldInfo.classId;
+
+      if (fieldAccessor == null) {
+          FieldMismatchCallback.FieldAdjustment fieldAdjustment = fury.getFieldMismatchCallback()
+                .onMismatch(
+                    fieldInfo.classInfo.getCls().getName(),
+                    fieldInfo.qualifiedFieldName.substring(
+                        fieldInfo.qualifiedFieldName.lastIndexOf('.') + 1));
+        FieldAccessor fallbackAccessor = null;
+        try {
+            fallbackAccessor = FieldAccessor.createAccessor(fieldAdjustment.getTargetField());
+        }
+        catch (RuntimeException ignored) {}
+
+        if (fallbackAccessor != null) {
+             Object fieldValue = ObjectSerializer.readFieldValue(
+                     fury, refResolver, classResolver, fieldInfo, isFinal, buffer, classId);
+            fallbackAccessor.putObject(obj, fieldAdjustment.adjustValue(fieldValue));
         }
       } else {
-        if (skipPrimitiveFieldValueFailed(fury, fieldInfo.classId, buffer)) {
-          if (fieldInfo.classInfo == null) {
-            // TODO(chaokunyang) support registered serializer in peer with ref tracking disabled.
-            fury.readRef(buffer, classInfoHolder);
-          } else {
-            ObjectSerializer.readFinalObjectFieldValue(
-                fury, refResolver, classResolver, fieldInfo, isFinal, buffer);
+          if (ObjectSerializer.readPrimitiveFieldValueFailed(
+                  fury, buffer, obj, fieldAccessor, classId)
+              && ObjectSerializer.readBasicObjectFieldValueFailed(
+                  fury, buffer, obj, fieldAccessor, classId)) {
+              assert fieldInfo.classInfo != null;
+              Object fieldValue =
+                      ObjectSerializer.readFinalObjectFieldValue(
+                              fury, refResolver, classResolver, fieldInfo, isFinal, buffer);
+              fieldAccessor.putObject(obj, fieldValue);
           }
-        }
       }
     }
     for (ObjectSerializer.GenericTypeField fieldInfo : otherFields) {
